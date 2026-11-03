@@ -54,8 +54,85 @@ def main():
     data = stasjoner["oslo_blindern_1954_2025_med_makstemperatur"]
 
     grupper = grupper_per_maaned(data)
+    statistikk = maanedsstatistikk(grupper)
 
-    print(grupper[(2020, 1)][:2])
+    plott_maaneder(statistikk)
+
+
+def maanedsstatistikk(grupper):
+    statistikk = {}
+
+    for nokkel, dager in grupper.items():
+        snoverdier = []
+        vindverdier = []
+        nedborverdier = []
+        tempverdier = []
+
+        for dag in dager:
+            if dag["sno"] is not None:
+                snoverdier.append(dag["sno"])
+
+        for dag in dager:
+            if dag["vind"] is not None:
+                vindverdier.append(dag["vind"])
+
+        for dag in dager:
+            if dag["nedbor"] is not None:
+                nedborverdier.append(dag["nedbor"])
+
+        for dag in dager:
+            if dag["temp"] is not None:
+                tempverdier.append(dag["temp"])
+
+        statistikk[nokkel] = {
+            "sno_max": max(snoverdier) if snoverdier else None,
+            "vind_max": max(vindverdier) if vindverdier else None,
+            "nedbor_total": sum(nedborverdier) if len(nedborverdier) > 20 else None,
+            "temp_min": min(tempverdier) if tempverdier else None,
+            "temp_max": max(tempverdier) if tempverdier else None
+        }
+
+    return statistikk
+
+
+def plott_maaneder(statistikk):
+    datoer = []
+    sno = []
+    nedbor = []
+    vind = []
+    temp_min = []
+    temp_max = []
+
+    for nokkel, verdier in sorted(statistikk.items()):
+        aar, maaned = nokkel
+
+        datoer.append(datetime(aar, maaned, 1))
+        sno.append(verdier["sno_max"])
+        nedbor.append(verdier["nedbor_total"])
+        vind.append(verdier["vind_max"])
+        temp_min.append(verdier["temp_min"])
+        temp_max.append(verdier["temp_max"])
+
+    fig, akser = plt.subplots(4, 1, figsize=(12, 7), sharex=True)
+
+    akser[0].plot(datoer, sno)
+    akser[0].set_ylabel("Snødybde (cm)")
+
+    akser[1].plot(datoer, nedbor)
+    akser[1].set_ylabel("Nedbør (mm)")
+
+    akser[2].plot(datoer, vind)
+    akser[2].set_ylabel("Vind (m/s)")
+
+    akser[3].plot(datoer, temp_min)
+    akser[3].plot(datoer, temp_max)
+    akser[3].set_ylabel("Temperatur (°C)")
+
+    for akse in akser:
+        akse.grid(True)
+
+    plt.tight_layout()
+    plt.show()
 
 
 if __name__ == "__main__":
