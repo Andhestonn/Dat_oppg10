@@ -7,14 +7,18 @@ from les_data import les_stasjoner
 MAPPE = Path(__file__).resolve().parent
 
 stasjoner = les_stasjoner(MAPPE / "stasjoner_mappe")
-stasjoner = {
-    "oslo_blindern": [{"dato", "temperatur", "nedbor"}],
-    "roeros": [{"dato", "temperatur", "nedbor"}],
-    "sinnes": [{"dato", "temperatur", "nedbor"}],
-    "tromsoe": [{"dato", "temperatur", "nedbor"}],
-    "vaernes": [{"dato", "temperatur", "nedbor"}],
-    "vanabu": [{"dato", "temperatur", "nedbor"}],
-}
+
+
+def grupper_per_maaned(data):
+    maaneder = {}
+
+    for dag in data:
+        dato = dag["dato"]
+        nokkel = (dato.year, dato.month)
+
+        # Add the day to the correct month
+
+    return maaneder
 
 
 def plotting(data, aar, stasjonsnavn):
@@ -96,6 +100,13 @@ def sommerdager(data, aar):
 
 def main():
     # folder containing the CSV files
+    stasjoner = les_stasjoner("stasjoner_mappe")
+
+    data = stasjoner["oslo_blindern_1954_2025_med_makstemperatur"]
+
+    grupper = grupper_per_maaned(data)
+
+    print(grupper[(2020, 1)][:2])
     stasjoner = les_stasjoner("stasjoner_mappe")
     print(stasjoner.keys())
     print('Tilgjengelige stasjoner:', ', '.join(stasjoner))
