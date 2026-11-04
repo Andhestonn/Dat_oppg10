@@ -2,113 +2,56 @@ import csv
 from datetime import datetime, timedelta
 from pathlib import Path
 import matplotlib.pyplot as plt
+from les_data import les_stasjoner
+
+MAPPE = Path(__file__).resolve().parent
 
 
-def til_tall(tekst):
-    if tekst == '' or tekst == '-':
-        return None
-    return float(tekst.replace(',', '.'))
+def grupper_per_maaned(data):
+    maaneder = {}
+
+    for dag in data:
+        dato = dag["dato"]
+        nokkel = (dato.year, dato.month)
+
+        if nokkel not in maaneder:
+            maaneder[nokkel] = []
+
+        maaneder[nokkel].append(dag)
+
+    return maaneder
 
 
-def les_fil(filsti):
-    data = []
-    with open(filsti, encoding='utf-8-sig') as fil:
-        leser = csv.DictReader(fil, delimiter=';')
-        for rad in leser:
-            dato_tekst = rad.get('Tid(norsk normaltid)')
-            if not dato_tekst:
-                continue
-            dag = {
-                'dato': datetime.strptime(dato_tekst, '%d.%m.%Y'),
-                'maks': til_tall(rad.get('Maksimumstemperatur (døgn)', '')),
-                'temp': til_tall(rad.get('Middeltemperatur (døgn)', '')),
-                'nedbor': til_tall(rad.get('Nedbør (døgn)', '')),
-                'vind': til_tall(rad.get('Høyeste middelvind (døgn)', '')),
-                'sno': til_tall(rad.get('Snødybde', ''))
-            }
-            data.append(dag)
-    return data
+def grupper_vind_per_maaned(data):
+    maaneder = {}
 
+    for dag in data:
+        maaned = dag["dato"].month
 
-def les_stasjoner(stasjoner_mappe):
-    stasjoner = {}
-    for fil in Path(stasjoner_mappe).glob("*.csv"):
-        stasjonsnavn = fil.stem
-        stasjoner[stasjonsnavn] = les_fil(fil)
+        if maaned not in maaneder:
+            maaneder[maaned] = []
 
-    return stasjoner
-
-
-stasjoner = {
-    "oslo_blindern": [{"dato", "temperatur", "nedbor"}],
-    "roeros": [{"dato", "temperatur", "nedbor"}],
-    "sinnes": [{"dato", "temperatur", "nedbor"}],
-    "tromsoe": [{"dato", "temperatur", "nedbor"}],
-    "vaernes": [{"dato", "temperatur", "nedbor"}],
-    "vanabu": [{"dato", "temperatur", "nedbor"}],
-}
-
-
-def plotting(data, aar, stasjonsnavn):
-    dager = [dag for dag in data if dag['dato'].year == aar]
-    datoer = [dag['dato'] for dag in dager]
-    felter = ['sno', 'nedbor', 'temp', 'vind']
-    titler = ['Snødybde (cm)', 'Nedbør (mm)',
-              'Middeltemperatur (°C)', 'Høyeste middelvind (m/s)']
-    fig, akser = plt.subplots(4, 1, figsize=(10, 9), sharex=True)
-    for i in range(4):
-        verdier = [dag[felter[i]] for dag in dager]
-        akser[i].plot(datoer, verdier)
-        akser[i].set_ylabel(titler[i])
-        akser[i].grid(True)
-        fig.suptitle(f'Værdata fra {stasjonsnavn} i {aar}')
-        plt.tight_layout()
-        plt.show()
+        if dag["vind"] is not None:
+            maaneder[maaned].append(dag["vind"])
+    return maaneder
 
 
 def skifore(data, aar):
     antall = 0
+    gyldige_dager = 0
     start = datetime(aar - 1, 11, 1)
     slutt = datetime(aar, 5, 31)
     for dag in data:
         if start <= dag['dato'] <= slutt:
             if dag['sno'] is not None and dag['sno'] >= 20:
                 antall += 1
+            gyldige_dager += 1
+    totale_dager = (slutt - start).days + 1
+
+    if gyldige_dager >= totale_dager / 2:
         return antall
 
-
-def plantevekst(data, aar):
-    vekst = 0
-    for dag in data:
-        if dag['dato'].year == aar:
-            if dag['temp'] is not None and dag['temp'] > 5:
-                vekst += dag['temp'] - 5
-                return vekst
-
-
-def lengste_torrperiode(data, aar):
-    dager = [dag for dag in data if dag['dato'].year == aar]
-    lengst = 0
-    antall = 0
-    start = None
-    beste_start = None
-    beste_slutt = None
-    for dag in dager:
-        if dag['nedbor'] == 0 and (antall == 0 or dag['dato'] - forrige_dato == timedelta(days=1)):
-            if antall == 0:
-                start = dag['dato']
-            antall += 1
-        elif dag['nedbor'] == 0:
-            start = dag['dato']
-            antall = 1
-        else:
-            antall = 0
-        if antall > lengst:
-            lengst = antall
-            beste_start = start
-            beste_slutt = dag['dato']
-            forrige_dato = dag['dato']
-            return lengst, beste_start, beste_slutt
+    return None
 
 
 def sommerdager(data, aar):
@@ -123,45 +66,228 @@ def sommerdager(data, aar):
                 hoysommer += 1
             if dag['maks'] > 30:
                 trope += 1
-                return sommer, hoysommer, trope
+    return sommer, hoysommer, trope
+
+
+def gjennomsnitt_temp(data, aar):
+    temperaturer = []
+
+    for dag in data:
+        if dag["dato"].year == aar and dag["temp"] is not None:
+            temperaturer.append(dag["temp"])
+
+    if len(temperaturer) >= 300:
+        return sum(temperaturer) / len(temperaturer)
+
+    return None
+
+
+def finn_median(verdier):
+    sortert = sorted(verdier)
+    antall = len(sortert)
+    midten = antall // 2
+
+    if antall % 2 == 1:
+        return sortert[midten]
+    else:
+        return (sortert[midten - 1] + sortert[midten]) / 2
 
 
 def main():
-    stasjoner = les_stasjoner('stasjoner')   # folder containing the CSV files
-    print('Tilgjengelige stasjoner:', ', '.join(stasjoner))
-    navn = input('Velg stasjon: ')
-    if navn not in stasjoner:
-        print('Ukjent stasjon.')
-        return
-    data = stasjoner[navn]
+    stasjoner = les_stasjoner("stasjoner_mappe")
 
-    aar = int(input('Skriv inn et år (2014-2025): '))
-    if aar < 2014 or aar > 2025:
-        print('Velg et år mellom 2014 og 2025.')
-        return
+    data = stasjoner["oslo_blindern_1954_2025_med_makstemperatur"]
 
-    plotting(data, aar, navn)
+    grupper = grupper_per_maaned(data)
+    statistikk = maanedsstatistikk(grupper)
 
-    if aar == 2014:
-        print('Merk: Skisesongen 2014 mangler data fra november og desember 2013.')
-
-    print('Dager med skiføre:', skifore(data, aar))
-    print('Total plantevekst:', round(plantevekst(data, aar), 1))
-    lengde, start, slutt = lengste_torrperiode(data, aar)
-
-    print('Lengste periode uten nedbør:', lengde, 'dager')
-
-    if start is not None:
-        print('Fra', start.strftime('%d.%m.%Y'),
-              'til', slutt.strftime('%d.%m.%Y'))
-
-    sommer, hoysommer, trope = sommerdager(data, aar)
-
-    print('Sommerdager:', sommer)
-    print('Høysommerdager:', hoysommer)
-    print('Tropedager:', trope)
-    print('Merk: Dager med manglende målinger er ikke telt med.')
+    plott_maaneder(statistikk)
+    plott_sommerdager(data)
+    plott_gjennomsnitt(stasjoner)
+    plott_vindstatistikk(data)
+    plott_skisesonger(stasjoner)
 
 
-if __name__ == '__main__':
+def maanedsstatistikk(grupper):
+    statistikk = {}
+
+    for nokkel, dager in grupper.items():
+        snoverdier = []
+        vindverdier = []
+        nedborverdier = []
+        tempverdier = []
+
+        for dag in dager:
+            if dag["sno"] is not None:
+                snoverdier.append(dag["sno"])
+
+        for dag in dager:
+            if dag["vind"] is not None:
+                vindverdier.append(dag["vind"])
+
+        for dag in dager:
+            if dag["nedbor"] is not None:
+                nedborverdier.append(dag["nedbor"])
+
+        for dag in dager:
+            if dag["temp"] is not None:
+                tempverdier.append(dag["temp"])
+
+        statistikk[nokkel] = {
+            "sno_max": max(snoverdier) if snoverdier else None,
+            "vind_max": max(vindverdier) if vindverdier else None,
+            "nedbor_total": sum(nedborverdier) if len(nedborverdier) > 20 else None,
+            "temp_min": min(tempverdier) if tempverdier else None,
+            "temp_max": max(tempverdier) if tempverdier else None
+        }
+
+    return statistikk
+
+
+def plott_maaneder(statistikk):
+    datoer = []
+    sno = []
+    nedbor = []
+    vind = []
+    temp_min = []
+    temp_max = []
+
+    for nokkel, verdier in sorted(statistikk.items()):
+        aar, maaned = nokkel
+
+        datoer.append(datetime(aar, maaned, 1))
+        sno.append(verdier["sno_max"])
+        nedbor.append(verdier["nedbor_total"])
+        vind.append(verdier["vind_max"])
+        temp_min.append(verdier["temp_min"])
+        temp_max.append(verdier["temp_max"])
+
+    fig, akser = plt.subplots(4, 1, figsize=(12, 7), sharex=True)
+
+    akser[0].plot(datoer, sno)
+    akser[0].set_ylabel("Snødybde (cm)")
+
+    akser[1].plot(datoer, nedbor)
+    akser[1].set_ylabel("Nedbør (mm)")
+
+    akser[2].plot(datoer, vind)
+    akser[2].set_ylabel("Vind (m/s)")
+
+    akser[3].plot(datoer, temp_min)
+    akser[3].plot(datoer, temp_max)
+    akser[3].set_ylabel("Temperatur (°C)")
+
+    for akse in akser:
+        akse.grid(True)
+
+    plt.tight_layout()
+    plt.show()
+
+
+def plott_sommerdager(data):
+    aarstall = []
+    sommer = []
+    hoysommer = []
+    trope = []
+
+    for aar in range(1954, 2026):
+        s, h, t = sommerdager(data, aar)
+
+        aarstall.append(aar)
+        sommer.append(s)
+        hoysommer.append(h)
+        trope.append(t)
+
+    plt.plot(aarstall, sommer, label="Sommerdager >20°C")
+    plt.plot(aarstall, hoysommer, label="Høysommerdager >25°C")
+    plt.plot(aarstall, trope, label="Tropedager >30°C")
+
+    plt.xlabel("År")
+    plt.ylabel("Antall dager")
+    plt.title("Sommerdager per år – Oslo Blindern")
+    plt.legend()
+    plt.grid(True)
+    plt.show()
+
+
+def plott_gjennomsnitt(stasjoner):
+    plt.figure(figsize=(12, 6))
+
+    for navn, data in stasjoner.items():
+        aarstall = sorted({dag["dato"].year for dag in data})
+        gjennomsnitt = []
+
+        for aar in aarstall:
+            gjennomsnitt.append(gjennomsnitt_temp(data, aar))
+
+        kort_navn = navn.split("_1954")[0].split("_2014")[0]
+        plt.plot(aarstall, gjennomsnitt, label=kort_navn)
+
+    plt.xlabel("År")
+    plt.ylabel("Gjennomsnittstemperatur (°C)")
+    plt.title("Årlig gjennomsnittstemperatur")
+    plt.legend()
+    plt.grid(True)
+    plt.show()
+
+
+def plott_vindstatistikk(data):
+    grupper = grupper_vind_per_maaned(data)
+
+    maaneder = []
+    minimum = []
+    medianer = []
+    maksimum = []
+
+    for maaned, vind in sorted(grupper.items()):
+        if vind:
+            maaneder.append(maaned)
+            minimum.append(min(vind))
+            medianer.append(finn_median(vind))
+            maksimum.append(max(vind))
+
+    plt.figure(figsize=(10, 5))
+
+    plt.plot(maaneder, minimum, label="Minimum")
+    plt.plot(maaneder, medianer, label="Median")
+    plt.plot(maaneder, maksimum, label="Maksimum")
+
+    plt.xlabel("Måned")
+    plt.ylabel("Vindstyrke (m/s)")
+    plt.xticks(range(1, 13))
+    plt.title("Vindstatistikk per måned - Oslo Blindern")
+    plt.legend()
+    plt.grid(True)
+    plt.show()
+
+
+def plott_skisesonger(stasjoner):
+    plt.figure(figsize=(12, 6))
+
+    for navn, data in stasjoner.items():
+        aarstall = []
+        skidager = []
+
+        for aar in sorted({dag["dato"].year for dag in data}):
+            resultat = skifore(data, aar)
+
+            if resultat is not None:
+                aarstall.append(aar)
+                skidager.append(resultat)
+
+        kort_navn = navn.split("_1954")[0].split("_2014")[0]
+
+        plt.plot(aarstall, skidager, label=kort_navn,
+                 linewidth=1, alpha=0.75)
+
+    plt.xlabel("Skisesong (sluttår)")
+    plt.ylabel("Antall skidager")
+    plt.title("Skisesonger - sammenligning av værstasjoner")
+    plt.legend(loc="upper left", bbox_to_anchor=(1.02, 1))
+    plt.tight_layout()
+    plt.grid(True)
+    plt.show()
+
+
+if __name__ == "__main__":
     main()
