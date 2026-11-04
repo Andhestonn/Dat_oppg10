@@ -22,6 +22,20 @@ def grupper_per_maaned(data):
     return maaneder
 
 
+def grupper_vind_per_maaned(data):
+    maaneder = {}
+
+    for dag in data:
+        maaned = dag["dato"].month
+
+        if maaned not in maaneder:
+            maaneder[maaned] = []
+
+        if dag["vind"] is not None:
+            maaneder[maaned].append(dag["vind"])
+    return maaneder
+
+
 def skifore(data, aar):
     antall = 0
     start = datetime(aar - 1, 11, 1)
@@ -48,6 +62,30 @@ def sommerdager(data, aar):
     return sommer, hoysommer, trope
 
 
+def gjennomsnitt_temp(data, aar):
+    temperaturer = []
+
+    for dag in data:
+        if dag["dato"].year == aar and dag["temp"] is not None:
+            temperaturer.append(dag["temp"])
+
+    if len(temperaturer) >= 300:
+        return sum(temperaturer) / len(temperaturer)
+
+    return None
+
+
+def finn_median(verdier):
+    sortert = sorted(verdier)
+    antall = len(sortert)
+    midten = antall // 2
+
+    if antall % 2 == 1:
+        return sortert[midten]
+    else:
+        return (sortert[midten - 1] + sortert[midten]) / 2
+
+
 def main():
     stasjoner = les_stasjoner("stasjoner_mappe")
 
@@ -58,6 +96,8 @@ def main():
 
     plott_maaneder(statistikk)
     plott_sommerdager(data)
+    plott_gjennomsnitt(stasjoner)
+    plott_vindstatistikk(data)
 
 
 def maanedsstatistikk(grupper):
@@ -157,6 +197,57 @@ def plott_sommerdager(data):
     plt.xlabel("År")
     plt.ylabel("Antall dager")
     plt.title("Sommerdager per år – Oslo Blindern")
+    plt.legend()
+    plt.grid(True)
+    plt.show()
+
+
+def plott_gjennomsnitt(stasjoner):
+    plt.figure(figsize=(12, 6))
+
+    for navn, data in stasjoner.items():
+        aarstall = sorted({dag["dato"].year for dag in data})
+        gjennomsnitt = []
+
+        for aar in aarstall:
+            gjennomsnitt.append(gjennomsnitt_temp(data, aar))
+
+        kort_navn = navn.split("_1954")[0].split("_2014")[0]
+        plt.plot(aarstall, gjennomsnitt, label=kort_navn)
+
+    plt.xlabel("År")
+    plt.ylabel("Gjennomsnittstemperatur (°C)")
+    plt.title("Årlig gjennomsnittstemperatur")
+    plt.legend()
+    plt.grid(True)
+    plt.show()
+
+
+def plott_vindstatistikk(data):
+    grupper = grupper_vind_per_maaned(data)
+
+    maaneder = []
+    minimum = []
+    medianer = []
+    maksimum = []
+
+    for maaned, vind in sorted(grupper.items()):
+        if vind:
+            maaneder.append(maaned)
+            minimum.append(min(vind))
+            medianer.append(finn_median(vind))
+            maksimum.append(max(vind))
+
+    plt.figure(figsize=(10, 5))
+
+    plt.plot(maaneder, minimum, label="Minimum")
+    plt.plot(maaneder, medianer, label="Median")
+    plt.plot(maaneder, maksimum, label="Maksimum")
+
+    plt.xlabel("Måned")
+    plt.ylabel("Vindstyrke (m/s)")
+    plt.xticks(range(1, 13))
+    plt.title("Vindstatistikk per måned - Oslo Blindern")
     plt.legend()
     plt.grid(True)
     plt.show()
