@@ -45,7 +45,7 @@ def sommerdager(data, aar):
                 hoysommer += 1
             if dag['maks'] > 30:
                 trope += 1
-                return sommer, hoysommer, trope
+    return sommer, hoysommer, trope
 
 
 def main():
@@ -57,6 +57,7 @@ def main():
     statistikk = maanedsstatistikk(grupper)
 
     plott_maaneder(statistikk)
+    plott_sommerdager(data)
 
 
 def maanedsstatistikk(grupper):
@@ -132,6 +133,32 @@ def plott_maaneder(statistikk):
         akse.grid(True)
 
     plt.tight_layout()
+    plt.show()
+
+
+def plott_sommerdager(data):
+    aarstall = []
+    sommer = []
+    hoysommer = []
+    trope = []
+
+    for aar in range(1954, 2026):
+        s, h, t = sommerdager(data, aar)
+
+        aarstall.append(aar)
+        sommer.append(s)
+        hoysommer.append(h)
+        trope.append(t)
+
+    plt.plot(aarstall, sommer, label="Sommerdager >20°C")
+    plt.plot(aarstall, hoysommer, label="Høysommerdager >25°C")
+    plt.plot(aarstall, trope, label="Tropedager >30°C")
+
+    plt.xlabel("År")
+    plt.ylabel("Antall dager")
+    plt.title("Sommerdager per år – Oslo Blindern")
+    plt.legend()
+    plt.grid(True)
     plt.show()
 
 
