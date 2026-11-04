@@ -38,13 +38,20 @@ def grupper_vind_per_maaned(data):
 
 def skifore(data, aar):
     antall = 0
+    gyldige_dager = 0
     start = datetime(aar - 1, 11, 1)
     slutt = datetime(aar, 5, 31)
     for dag in data:
         if start <= dag['dato'] <= slutt:
             if dag['sno'] is not None and dag['sno'] >= 20:
                 antall += 1
+            gyldige_dager += 1
+    totale_dager = (slutt - start).days + 1
+
+    if gyldige_dager >= totale_dager / 2:
         return antall
+
+    return None
 
 
 def sommerdager(data, aar):
@@ -98,6 +105,7 @@ def main():
     plott_sommerdager(data)
     plott_gjennomsnitt(stasjoner)
     plott_vindstatistikk(data)
+    plott_skisesonger(stasjoner)
 
 
 def maanedsstatistikk(grupper):
@@ -249,6 +257,34 @@ def plott_vindstatistikk(data):
     plt.xticks(range(1, 13))
     plt.title("Vindstatistikk per måned - Oslo Blindern")
     plt.legend()
+    plt.grid(True)
+    plt.show()
+
+
+def plott_skisesonger(stasjoner):
+    plt.figure(figsize=(12, 6))
+
+    for navn, data in stasjoner.items():
+        aarstall = []
+        skidager = []
+
+        for aar in sorted({dag["dato"].year for dag in data}):
+            resultat = skifore(data, aar)
+
+            if resultat is not None:
+                aarstall.append(aar)
+                skidager.append(resultat)
+
+        kort_navn = navn.split("_1954")[0].split("_2014")[0]
+
+        plt.plot(aarstall, skidager, label=kort_navn,
+                 linewidth=1, alpha=0.75)
+
+    plt.xlabel("Skisesong (sluttår)")
+    plt.ylabel("Antall skidager")
+    plt.title("Skisesonger - sammenligning av værstasjoner")
+    plt.legend(loc="upper left", bbox_to_anchor=(1.02, 1))
+    plt.tight_layout()
     plt.grid(True)
     plt.show()
 
