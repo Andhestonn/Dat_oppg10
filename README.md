@@ -1,5 +1,7 @@
 # Dat_oppg10
 
+Legger inn en liten test
+
 Læringsmål:
 Dere skal lære å jobbe med en litt større programmeringsoppgave i grupper. Dere skal
 lære grunnleggende bruk av Git og Github. Dere skal lære hvordan å videreutvikle et
