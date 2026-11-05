@@ -42,10 +42,12 @@ def skifore(data, aar):
     start = datetime(aar - 1, 11, 1)
     slutt = datetime(aar, 5, 31)
     for dag in data:
-        if start <= dag['dato'] <= slutt:
-            if dag['sno'] is not None and dag['sno'] >= 20:
-                antall += 1
-            gyldige_dager += 1
+        if start <= dag["dato"] <= slutt:
+            if dag["sno"] is not None:
+                gyldige_dager += 1
+
+                if dag["sno"] >= 20:
+                    antall += 1
     totale_dager = (slutt - start).days + 1
 
     if gyldige_dager >= totale_dager / 2:
@@ -270,10 +272,8 @@ def plott_skisesonger(stasjoner):
 
         for aar in sorted({dag["dato"].year for dag in data}):
             resultat = skifore(data, aar)
-
-            if resultat is not None:
-                aarstall.append(aar)
-                skidager.append(resultat)
+            aarstall.append(aar)
+            skidager.append(resultat)
 
         kort_navn = navn.split("_1954")[0].split("_2014")[0]
 
